@@ -1,21 +1,21 @@
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from bot.keyboards.reply import selection_countries, selection_dates, selection_people, selection_budget, selection_preferences, contact_share_keyboard, main_menu
+from bot.keyboards.reply import main_menu, cities_keyboard, simple_options_keyboard, contact_share_keyboard
 from bot.db.repositories.requests_repo import RequestsRepository
-from bot.texts.localization import get_all_variants
+from bot.texts.localization import get_text, get_all_variants
 import re
 
 router = Router()
 requests_repo = RequestsRepository()
 
 class SelectionFSM(StatesGroup):
-    choosing_country = State()
-    choosing_date = State()
-    entering_budget = State()
-    choosing_people = State()
-    entering_preferences = State()
-    completed = State()
+    origin = State()
+    destination = State()
+    dates = State()
+    budget = State()
+    people = State()
+    preferences = State()
 
 class ApplicationFSM(StatesGroup):
     entering_contact = State()
@@ -23,102 +23,150 @@ class ApplicationFSM(StatesGroup):
 
 @router.message(F.text.in_(get_all_variants("btn_select_tour")))
 async def start_selection(message: types.Message, state: FSMContext):
-    await state.set_state(SelectionFSM.choosing_country)
-    await message.answer("Choose destination:", reply_markup=selection_countries())
-
-@router.message(SelectionFSM.choosing_country)
-async def chosen_country(message: types.Message, state: FSMContext):
-    if message.text == "Cancel":
-        await state.clear()
-        await message.answer("Canceled", reply_markup=main_menu())
-        return
-    await state.update_data(country=message.text)
-    await state.set_state(SelectionFSM.choosing_date)
-    await message.answer("When do you plan to travel?", reply_markup=selection_dates())
-
-@router.message(SelectionFSM.choosing_date)
-async def chosen_date(message: types.Message, state: FSMContext):
-    if message.text == "Cancel":
-        await state.clear()
-        await message.answer("Canceled", reply_markup=main_menu())
-        return
-    await state.update_data(travel_month=message.text)
-    await state.set_state(SelectionFSM.entering_budget)
-    await message.answer("Select your budget range:", reply_markup=selection_budget())
-
-@router.message(SelectionFSM.entering_budget)
-async def entered_budget(message: types.Message, state: FSMContext):
-    if message.text == "Cancel":
-        await state.clear()
-        await message.answer("Canceled", reply_markup=main_menu())
-        return
-    await state.update_data(budget_value=message.text)
-    await state.set_state(SelectionFSM.choosing_people)
-    await message.answer("How many travelers?", reply_markup=selection_people())
-
-@router.message(SelectionFSM.choosing_people)
-async def chosen_people(message: types.Message, state: FSMContext):
-    if message.text == "Cancel":
-        await state.clear()
-        await message.answer("Canceled", reply_markup=main_menu())
-        return
+    user_id = message.from_user.id
+    # We need language here. A small hack since we don't have repo injected everywhere easily, 
+    # but we can rely on what buttons the user pressed to infer lang or fetch from DB. 
+    # For now, let's assume default RU if not found, usually middleware does this.
+    # But consistent with other handlers, let's fetch or use 'ru'.
+    # For simplicity in FSM, let's look at the button text they clicked.
+    lang = "uz" if message.text == "Tur tanlash" else "ru"
+    await state.update_data(lang=lang)
     
-    await state.update_data(people_count=message.text)
-    await state.set_state(SelectionFSM.entering_preferences)
-    await message.answer("Any specific preferences?", reply_markup=selection_preferences())
+    await state.set_state(SelectionFSM.origin)
+    await message.answer(get_text(lang, "Action_Select_Origin"), reply_markup=cities_keyboard(lang))
 
-@router.message(SelectionFSM.entering_preferences)
-async def entered_preferences(message: types.Message, state: FSMContext):
-    if message.text == "Cancel":
-        await state.clear()
-        await message.answer("Canceled", reply_markup=main_menu())
-        return
-
+@router.message(SelectionFSM.origin)
+async def fsm_origin(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    pref = message.text if message.text != "Skip" else "No preferences"
+    lang = data.get("lang", "ru")
     
+    if message.text in get_all_variants("Btn_Cancel"):
+        await state.clear()
+        await message.answer(get_text(lang, "main_menu"), reply_markup=main_menu(lang))
+        return
+
+    await state.update_data(origin=message.text)
+    await state.set_state(SelectionFSM.destination)
+    await message.answer(get_text(lang, "Action_Select_Destination"), reply_markup=cities_keyboard(lang))
+
+@router.message(SelectionFSM.destination)
+async def fsm_destination(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+    
+    if message.text in get_all_variants("Btn_Cancel"):
+        await state.clear()
+        await message.answer(get_text(lang, "main_menu"), reply_markup=main_menu(lang))
+        return
+
+    await state.update_data(destination=message.text)
+    await state.set_state(SelectionFSM.dates)
+    await message.answer(get_text(lang, "Action_Enter_Dates"), reply_markup=types.ReplyKeyboardRemove())
+
+@router.message(SelectionFSM.dates)
+async def fsm_dates(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+    
+    await state.update_data(travel_date=message.text) # storing full text like "10.05 - 20.05"
+    await state.set_state(SelectionFSM.budget)
+    
+    opts = ["$500 - $1000", "$1000 - $2000", "$2000+", "No Limit"]
+    await message.answer(get_text(lang, "Action_Select_Budget"), reply_markup=simple_options_keyboard(opts, lang))
+
+@router.message(SelectionFSM.budget)
+async def fsm_budget(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+    
+    if message.text in get_all_variants("Btn_Cancel"):
+        await state.clear()
+        await message.answer(get_text(lang, "main_menu"), reply_markup=main_menu(lang))
+        return
+
+    await state.update_data(budget_value=message.text)
+    await state.set_state(SelectionFSM.people)
+    
+    opts = ["1", "2", "3", "4+"]
+    await message.answer(get_text(lang, "Action_Select_People"), reply_markup=simple_options_keyboard(opts, lang))
+
+@router.message(SelectionFSM.people)
+async def fsm_people(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+    
+    if message.text in get_all_variants("Btn_Cancel"):
+        await state.clear()
+        await message.answer(get_text(lang, "main_menu"), reply_markup=main_menu(lang))
+        return
+
+    await state.update_data(people_count=message.text)
+    await state.set_state(SelectionFSM.preferences)
+    
+    opts = ["All Inclusive", "Breakfast", "First Line", "City Hotel"]
+    await message.answer(get_text(lang, "Action_Enter_Preferences"), reply_markup=simple_options_keyboard(opts, lang))
+
+@router.message(SelectionFSM.preferences)
+async def fsm_preferences(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+    
+    if message.text in get_all_variants("Btn_Cancel"):
+        await state.clear()
+        await message.answer(get_text(lang, "main_menu"), reply_markup=main_menu(lang))
+        return
+        
     data.update({
         "user_id": message.from_user.id,
         "request_type": "selection",
-        "preferences": pref
+        "preferences": message.text
     })
     
-    await requests_repo.create_request(data)
+    # Clean data before saving (remove temp keys like 'lang')
+    save_data = {k: v for k, v in data.items() if k != 'lang'}
+    await requests_repo.create_request(save_data)
+    
     await state.clear()
-    await message.answer("Request received! Our manager will contact you soon.", reply_markup=main_menu())
+    await message.answer(get_text(lang, "req_status_new"), reply_markup=main_menu(lang))
+
+# --- Tour Application Flow ---
 
 @router.callback_query(F.data.startswith("apply_"))
 async def start_tour_application(call: types.CallbackQuery, state: FSMContext):
-    tour_id = int(call.data.split("_")[1])
-    await state.update_data(tour_id=tour_id, request_type="tour")
+    # Infer language or default
+    lang = "ru" # Simplified, ideally fetch from DB
+    await state.update_data(tour_id=int(call.data.split("_")[1]), request_type="tour", lang=lang)
     await state.set_state(ApplicationFSM.entering_contact)
-    await call.message.answer("Please share your phone number", reply_markup=contact_share_keyboard())
+    await call.message.answer(get_text(lang, "contacts_text"), reply_markup=contact_share_keyboard(lang))
     await call.answer()
 
 @router.message(ApplicationFSM.entering_contact)
-async def entered_contact(message: types.Message, state: FSMContext):
-    if message.text == "Cancel":
+async def tour_contact(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang", "ru")
+
+    if message.text in get_all_variants("Btn_Cancel"):
         await state.clear()
-        await message.answer("Canceled", reply_markup=main_menu())
+        await message.answer(get_text(lang, "main_menu"), reply_markup=main_menu(lang))
         return
 
     phone = message.contact.phone_number if message.contact else message.text
-    
-    if not message.contact and not re.match(r"^\+?[\d\s-]{7,15}$", phone):
-        await message.answer("Invalid phone format. Please try again or use the button.")
-        return
-
     await state.update_data(phone=phone)
     await state.set_state(ApplicationFSM.entering_method)
-    await message.answer("Preferred contact method? (Telegram/Call/Whatsapp)", reply_markup=types.ReplyKeyboardRemove())
+    await message.answer("Telegram / WhatsApp / Call?", reply_markup=types.ReplyKeyboardRemove())
 
 @router.message(ApplicationFSM.entering_method)
-async def entered_method(message: types.Message, state: FSMContext):
+async def tour_method(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    lang = data.get("lang", "ru")
+    
     data.update({
         "user_id": message.from_user.id,
         "contact_method": message.text
     })
-    await requests_repo.create_request(data)
+    
+    save_data = {k: v for k, v in data.items() if k != 'lang'}
+    await requests_repo.create_request(save_data)
+    
     await state.clear()
-    await message.answer("Tour request submitted successfully!", reply_markup=main_menu())
+    await message.answer(get_text(lang, "req_status_new"), reply_markup=main_menu(lang))

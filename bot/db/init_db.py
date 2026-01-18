@@ -36,13 +36,28 @@ async def init_db():
                 request_type TEXT,
                 tour_id INTEGER NULL,
                 status TEXT DEFAULT 'new',
-                travel_month TEXT NULL,
-                budget_value REAL NULL,
-                budget_currency TEXT NULL,
-                people_count INTEGER NULL,
+                origin TEXT NULL,
+                destination TEXT NULL,
+                travel_date TEXT NULL,
+                return_date TEXT NULL,
+                budget_value TEXT NULL,
+                people_count TEXT NULL,
                 preferences TEXT NULL,
                 phone TEXT NULL,
                 contact_method TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS tickets (
+                ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                origin TEXT,
+                destination TEXT,
+                flight_date TEXT,
+                price REAL,
+                currency TEXT,
+                status TEXT DEFAULT 'confirmed',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)

@@ -12,68 +12,40 @@ def main_menu(lang="ru"):
     builder = ReplyKeyboardBuilder()
     builder.row(
         KeyboardButton(text=get_text(lang, "btn_select_tour")),
-        KeyboardButton(text=get_text(lang, "btn_hot_tours"))
+        KeyboardButton(text=get_text(lang, "btn_flight_tickets"))
     )
     builder.row(
-        KeyboardButton(text=get_text(lang, "btn_catalog")),
-        KeyboardButton(text=get_text(lang, "btn_my_requests"))
+        KeyboardButton(text=get_text(lang, "btn_hot_tours")),
+        KeyboardButton(text=get_text(lang, "btn_catalog"))
     )
     builder.row(
-        KeyboardButton(text=get_text(lang, "btn_contacts")),
-        KeyboardButton(text=get_text(lang, "btn_faq"))
+        KeyboardButton(text=get_text(lang, "btn_my_requests")),
+        KeyboardButton(text=get_text(lang, "btn_contacts"))
     )
     return builder.as_markup(resize_keyboard=True)
 
-def contact_share_keyboard():
+def cities_keyboard(lang="ru"):
+    builder = ReplyKeyboardBuilder()
+    cities = ["City_Tashkent", "City_Moscow", "City_Dubai", "City_Istanbul", "City_Samarkand", "City_NewYork"]
+    for city_key in cities:
+        builder.button(text=get_text(lang, city_key))
+    builder.button(text=get_text(lang, "Btn_Other_City"))
+    builder.button(text=get_text(lang, "Btn_Cancel"))
+    builder.adjust(2)
+    return builder.as_markup(resize_keyboard=True)
+
+def contact_share_keyboard(lang="ru"):
     builder = ReplyKeyboardBuilder()
     builder.button(text="Send Contact", request_contact=True)
-    builder.button(text="Cancel", request_contact=False)
+    builder.button(text=get_text(lang, "Btn_Cancel"))
     builder.adjust(1)
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=True)
 
-def selection_countries():
+# Reusing simplified builders for other inputs, ensuring they accept lang argument
+def simple_options_keyboard(options, lang="ru"):
     builder = ReplyKeyboardBuilder()
-    countries = ["Turkey", "UAE", "Egypt", "Thailand", "Maldives", "Europe", "Uzbekistan", "USA"]
-    for country in countries:
-        builder.button(text=country)
-    builder.button(text="Other")
-    builder.button(text="Cancel")
-    builder.adjust(3)
-    return builder.as_markup(resize_keyboard=True)
-
-def selection_dates():
-    builder = ReplyKeyboardBuilder()
-    options = ["This Month", "Next Month", "Spring", "Summer", "Autumn", "Winter", "Any Dates"]
     for opt in options:
         builder.button(text=opt)
-    builder.button(text="Cancel")
-    builder.adjust(2)
-    return builder.as_markup(resize_keyboard=True)
-
-def selection_budget():
-    builder = ReplyKeyboardBuilder()
-    options = ["Economy ($500-)", "Regular ($500-1500)", "Premium ($1500-3000)", "Luxury ($3000+)", "No Limit"]
-    for opt in options:
-        builder.button(text=opt)
-    builder.button(text="Cancel")
-    builder.adjust(2)
-    return builder.as_markup(resize_keyboard=True)
-
-def selection_people():
-    builder = ReplyKeyboardBuilder()
-    for i in range(1, 11):
-        builder.button(text=str(i))
-    builder.button(text="10+")
-    builder.button(text="Cancel")
-    builder.adjust(5)
-    return builder.as_markup(resize_keyboard=True)
-
-def selection_preferences():
-    builder = ReplyKeyboardBuilder()
-    tags = ["All Inclusive", "Breakfast only", "Beach Front", "City Center", "Quiet", "Party", "Kids Friendly", "Honeymoon"]
-    for tag in tags:
-        builder.button(text=tag)
-    builder.button(text="Skip")
-    builder.button(text="Cancel")
+    builder.button(text=get_text(lang, "Btn_Cancel"))
     builder.adjust(2)
     return builder.as_markup(resize_keyboard=True)

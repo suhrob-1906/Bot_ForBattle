@@ -12,7 +12,6 @@ async def cmd_start(message: types.Message):
     user = await user_repo.get_user(message.from_user.id)
     
     if user:
-        # User tuple: (id, username, fullname, language, created_at)
         lang = user[3]
         if lang:
              await message.answer(get_text(lang, "start"), reply_markup=main_menu(lang))
