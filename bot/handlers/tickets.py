@@ -5,7 +5,7 @@ from bot.keyboards.reply import main_menu, cities_keyboard, simple_options_keybo
 from bot.db.repositories.tickets_repo import TicketsRepository
 from bot.db.repositories.users_repo import UsersRepository
 from bot.texts.localization import get_text, get_all_variants
-from bot.keyboards.inline import payment_confirm # Reusing generic payment logic visual
+from bot.keyboards.inline import payment_confirm 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 router = Router()
@@ -64,7 +64,6 @@ async def ticket_date(message: types.Message, state: FSMContext):
     dest = data.get("destination")
     date_val = message.text
     
-    # Mock price calculation
     price = 450 if "NewYork" in dest else 150
     currency = "USD"
     

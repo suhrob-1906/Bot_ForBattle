@@ -24,11 +24,6 @@ class ApplicationFSM(StatesGroup):
 @router.message(F.text.in_(get_all_variants("btn_select_tour")))
 async def start_selection(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
-    # We need language here. A small hack since we don't have repo injected everywhere easily, 
-    # but we can rely on what buttons the user pressed to infer lang or fetch from DB. 
-    # For now, let's assume default RU if not found, usually middleware does this.
-    # But consistent with other handlers, let's fetch or use 'ru'.
-    # For simplicity in FSM, let's look at the button text they clicked.
     lang = "uz" if message.text == "Tur tanlash" else "ru"
     await state.update_data(lang=lang)
     
@@ -68,7 +63,7 @@ async def fsm_dates(message: types.Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "ru")
     
-    await state.update_data(travel_date=message.text) # storing full text like "10.05 - 20.05"
+    await state.update_data(travel_date=message.text)
     await state.set_state(SelectionFSM.budget)
     
     opts = ["$500 - $1000", "$1000 - $2000", "$2000+", "No Limit"]
@@ -122,19 +117,15 @@ async def fsm_preferences(message: types.Message, state: FSMContext):
         "preferences": message.text
     })
     
-    # Clean data before saving (remove temp keys like 'lang')
     save_data = {k: v for k, v in data.items() if k != 'lang'}
     await requests_repo.create_request(save_data)
     
     await state.clear()
     await message.answer(get_text(lang, "req_status_new"), reply_markup=main_menu(lang))
 
-# --- Tour Application Flow ---
-
 @router.callback_query(F.data.startswith("apply_"))
 async def start_tour_application(call: types.CallbackQuery, state: FSMContext):
-    # Infer language or default
-    lang = "ru" # Simplified, ideally fetch from DB
+    lang = "ru"
     await state.update_data(tour_id=int(call.data.split("_")[1]), request_type="tour", lang=lang)
     await state.set_state(ApplicationFSM.entering_contact)
     await call.message.answer(get_text(lang, "contacts_text"), reply_markup=contact_share_keyboard(lang))
