@@ -2,50 +2,103 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from aiogram.types import KeyboardButton
 from bot.texts.localization import get_text
 
-def language_keyboard():
+def lang_kb():
     builder = InlineKeyboardBuilder()
-    builder.button(text="Русский", callback_data="lang_ru")
-    builder.button(text="O'zbekcha", callback_data="lang_uz")
+    builder.button(text="🇷🇺 Русский", callback_data="lang_ru")
+    builder.button(text="🇺🇿 O'zbekcha", callback_data="lang_uz")
     return builder.as_markup()
 
-def main_menu(lang="ru"):
+def main_menu(lang):
     builder = ReplyKeyboardBuilder()
-    builder.row(
-        KeyboardButton(text=get_text(lang, "btn_select_tour")),
-        KeyboardButton(text=get_text(lang, "btn_flight_tickets"))
-    )
-    builder.row(
-        KeyboardButton(text=get_text(lang, "btn_hot_tours")),
-        KeyboardButton(text=get_text(lang, "btn_catalog"))
-    )
-    builder.row(
-        KeyboardButton(text=get_text(lang, "btn_my_requests")),
-        KeyboardButton(text=get_text(lang, "btn_contacts"))
-    )
+    builder.row(KeyboardButton(text=get_text(lang, "btn_book")))
+    builder.row(KeyboardButton(text=get_text(lang, "btn_hot")))
+    builder.row(KeyboardButton(text=get_text(lang, "btn_history")))
+    builder.row(KeyboardButton(text=get_text(lang, "btn_lang")))
     return builder.as_markup(resize_keyboard=True)
 
-def cities_keyboard(lang="ru"):
+def cities_opts(lang, exclude=None):
     builder = ReplyKeyboardBuilder()
-    cities = ["City_Tashkent", "City_Moscow", "City_Dubai", "City_Istanbul", "City_Samarkand", "City_NewYork"]
-    for city_key in cities:
-        builder.button(text=get_text(lang, city_key))
-    builder.button(text=get_text(lang, "Btn_Other_City"))
-    builder.button(text=get_text(lang, "Btn_Cancel"))
+    cities_ru = ["Ташкент", "Самарканд", "Бухара", "Хива", "Фергана", "Наманган", "Алматы", "Бишкек", "Дубай", "Стамбул", "Анталья", "Москва"]
+    cities_uz = ["Toshkent", "Samarqand", "Buxoro", "Xiva", "Farg'ona", "Namangan", "Olmaota", "Bishkek", "Dubay", "Istanbul", "Antaliya", "Moskva"]
+    
+    cities = cities_ru if lang == "ru" else cities_uz
+    for city in cities:
+        if exclude and city == exclude:
+            continue
+        builder.button(text=city)
+        
+    builder.button(text=get_text(lang, "other"))
+    builder.button(text=get_text(lang, "cancel"))
     builder.adjust(2)
     return builder.as_markup(resize_keyboard=True)
 
-def contact_share_keyboard(lang="ru"):
+def cancel_kb(lang):
     builder = ReplyKeyboardBuilder()
-    builder.button(text="Send Contact", request_contact=True)
-    builder.button(text=get_text(lang, "Btn_Cancel"))
+    builder.button(text=get_text(lang, "cancel"))
+    return builder.as_markup(resize_keyboard=True)
+
+def currency_opts(lang):
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="USD")
+    builder.button(text="UZS")
+    builder.button(text=get_text(lang, "cancel"))
+    builder.adjust(2)
+    return builder.as_markup(resize_keyboard=True)
+
+def pax_opts(lang):
+    builder = ReplyKeyboardBuilder()
+    for i in range(1, 7):
+        builder.button(text=str(i))
+    builder.button(text=get_text(lang, "other"))
+    builder.button(text=get_text(lang, "cancel"))
+    builder.adjust(3)
+    return builder.as_markup(resize_keyboard=True)
+
+def hotel_opts(lang):
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="3*")
+    builder.button(text="4*")
+    builder.button(text="5*")
+    builder.button(text=get_text(lang, "other"))
+    builder.button(text=get_text(lang, "cancel"))
+    builder.adjust(3)
+    return builder.as_markup(resize_keyboard=True)
+
+def meals_opts(lang):
+    builder = ReplyKeyboardBuilder()
+    builder.button(text="Breakfast")
+    builder.button(text="Half board")
+    builder.button(text="All inclusive")
+    builder.button(text=get_text(lang, "other"))
+    builder.button(text=get_text(lang, "cancel"))
+    builder.adjust(2)
+    return builder.as_markup(resize_keyboard=True)
+    
+def fare_kb(prices, lang):
+    builder = InlineKeyboardBuilder()
+    builder.button(text=f"{get_text(lang, 'fare_eco')} - {prices['eco']}", callback_data="fare_eco")
+    builder.button(text=f"{get_text(lang, 'fare_std')} - {prices['std']}", callback_data="fare_std")
+    builder.button(text=f"{get_text(lang, 'fare_com')} - {prices['com']}", callback_data="fare_com")
     builder.adjust(1)
-    return builder.as_markup(resize_keyboard=True, one_time_keyboard=True)
+    return builder.as_markup()
 
-# Reusing simplified builders for other inputs, ensuring they accept lang argument
-def simple_options_keyboard(options, lang="ru"):
-    builder = ReplyKeyboardBuilder()
-    for opt in options:
-        builder.button(text=opt)
-    builder.button(text=get_text(lang, "Btn_Cancel"))
-    builder.adjust(2)
-    return builder.as_markup(resize_keyboard=True)
+def pay_kb(lang):
+    builder = InlineKeyboardBuilder()
+    builder.button(text=get_text(lang, "pay_confirm"), callback_data="pay_confirm")
+    return builder.as_markup()
+
+def hot_nav_kb(offer_id, total_count, lang):
+    builder = InlineKeyboardBuilder()
+    builder.button(text=get_text(lang, "prev"), callback_data=f"hot_prev_{offer_id}")
+    builder.button(text=get_text(lang, "book_this"), callback_data=f"hot_book_{offer_id}")
+    builder.button(text=get_text(lang, "next"), callback_data=f"hot_next_{offer_id}")
+    builder.adjust(3)
+    return builder.as_markup()
+
+def history_nav_kb(offset, limit, total, lang):
+    builder = InlineKeyboardBuilder()
+    if offset > 0:
+        builder.button(text=get_text(lang, "prev"), callback_data=f"hist_prev_{offset}")
+    if offset + limit < total:
+        builder.button(text=get_text(lang, "next"), callback_data=f"hist_next_{offset}")
+    return builder.as_markup()
