@@ -1,42 +1,64 @@
-# Travel Agency Bot 🌍
+# Travel Agency Bot
 
-Полноценный локальный Telegram-бот для турагентства с базой данных SQLite, админкой и фейковой оплатой.
+A fully functional Telegram bot for a travel agency built with Python, aiogram 3, and SQLite.
 
-## Установка и запуск 🚀
+## Features
 
-1. **Создайте окружение и установите зависимости:**
-   ```bash
-   python -m venv venv
-   # Windows
-   venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+### User Features
+- **Language Selection**: RU/UZ support.
+- **Tour Selection Wizard**: Step-by-step FSM to find the perfect trip (Destination, Dates, Budget, People, Preferences).
+- **Tour Catalog**: Browse available tours with images and descriptions.
+- **Requests Management**: View status of your applications, cancel them, or proceed to payment.
+- **Fake Payment Gateway**: Simulation of payment flow for checking bookings.
+- **Contacts & FAQ**: Information sections.
 
-2. **Настройте конфиг:**
-   - Скопируйте `.env.example` -> `.env`
-   - Вставьте свой `BOT_TOKEN`
+### Admin Features
+- **Statistics**: View counts of users, tours, requests, and payments.
+- **Broadcast**: Send messages to all users using `/broadcast`.
 
-3. **Запустите бота:**
-   ```bash
-   python -m bot.main
-   ```
-   *База данных и таблицы создадутся автоматически при первом запуске.*
+## Installation
 
-## Функционал 🛠
+1.  Clone the repository.
+2.  Create virtual environment:
+    ```bash
+    python -m venv venv
+    venv\Scripts\activate
+    ```
+3.  Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+4.  Configure `.env`:
+    ```ini
+    BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+    ADMIN_IDS=12345678,87654321
+    ```
+5.  Run the bot:
+    ```bash
+    python -m bot.main
+    ```
 
-- **Подобрать тур**: Пошаговый опрос (Страна -> Даты -> Бюджет -> Люди).
-- **Каталог**: Просмотр туров из базы (mock-data создается при старте).
-- **Заявки**: Просмотр статусов, отмена, фейковая оплата.
-- **Админка**: Работает через код (можно расширить модуль `bot/handlers/admin`).
+## Project Structure
 
-## Структура проекта 📂
+- `bot/main.py`: Entry point.
+- `bot/app.py`: Application assembler.
+- `bot/db/`: Database connection and repositories.
+- `bot/handlers/`:
+    - `selection_fsm.py`: Logic for "Find a Tour" wizard.
+    - `tours_catalog.py`: Displays tours with photos.
+    - `admin.py`: Admin panel commands.
+    - `payments.py`: Fake payment logic.
+- `bot/keyboards/`: Reply and Inline keyboards.
+- `bot/texts/`: Localization logic.
 
-- `bot/db/`: Слой работы с БД (айоsqlite, репозитории).
-- `bot/handlers/`: Обработчики команд и кнопок.
-- `bot/keyboards/`: Клавиатуры (Reply для меню, Inline для действий).
-- `bot/app.py`: Сборка приложения и роутеров.
+## Adding New Content
 
-## Как расширять? 🧩
+- **Tours**: Add them to the `tours` table in SQLite or update `seed_tours` in `init_db.py`.
+- **Translations**: Update `MESSAGES` dict in `bot/texts/localization.py`.
 
-- **Новый хендлер**: Создайте файл в `handlers/`, зарегистрируйте роутер в `app.py`.
-- **Новая таблица**: Добавьте SQL в `db/init_db.py`.
+## Requirements
+
+- Python 3.9+
+- aiogram 3.x
+- aiosqlite
+- python-dotenv
