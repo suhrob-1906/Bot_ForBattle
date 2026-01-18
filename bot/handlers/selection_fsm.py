@@ -3,6 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from bot.keyboards.reply import selection_countries, selection_dates, selection_people, selection_budget, selection_preferences, contact_share_keyboard, main_menu
 from bot.db.repositories.requests_repo import RequestsRepository
+from bot.texts.localization import get_all_variants
 import re
 
 router = Router()
@@ -20,7 +21,7 @@ class ApplicationFSM(StatesGroup):
     entering_contact = State()
     entering_method = State()
 
-@router.message(F.text.in_({"Подобрать тур", "Tur tanlash"}))
+@router.message(F.text.in_(get_all_variants("btn_select_tour")))
 async def start_selection(message: types.Message, state: FSMContext):
     await state.set_state(SelectionFSM.choosing_country)
     await message.answer("Choose destination:", reply_markup=selection_countries())
@@ -103,7 +104,6 @@ async def entered_contact(message: types.Message, state: FSMContext):
 
     phone = message.contact.phone_number if message.contact else message.text
     
-    # Basic validation
     if not message.contact and not re.match(r"^\+?[\d\s-]{7,15}$", phone):
         await message.answer("Invalid phone format. Please try again or use the button.")
         return

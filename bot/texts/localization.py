@@ -15,6 +15,13 @@ MESSAGES = {
         "req_status_in_progress": "В обработке",
         "req_status_confirmed": "Подтверждена",
         "req_status_canceled": "Отменена",
+        "inline_apply": "📝 Оставить заявку",
+        "inline_share": "🔗 Поделиться",
+        "inline_back": "⬅️ Назад",
+        "inline_forward": "Вперед ➡️",
+        "inline_cancel": "❌ Отменить",
+        "inline_pay": "💳 Фейковая бронь",
+        "inline_confirm_pay": "✅ Подтвердить оплату (Тест)",
     },
     "uz": {
         "start": "Salom! Tilni tanlang / Выберите язык:",
@@ -32,8 +39,19 @@ MESSAGES = {
         "req_status_in_progress": "Jarayonda",
         "req_status_confirmed": "Tasdiqlangan",
         "req_status_canceled": "Bekor qilingan",
+        "inline_apply": "📝 Ariza qoldirish",
+        "inline_share": "🔗 Ulashish",
+        "inline_back": "⬅️ Orqaga",
+        "inline_forward": "Oldinga ➡️",
+        "inline_cancel": "❌ Bekor qilish",
+        "inline_pay": "💳 Soxta bandlov",
+        "inline_confirm_pay": "✅ To'lovni tasdiqlash (Test)",
     }
 }
 
 def get_text(lang_code, key):
     return MESSAGES.get(lang_code, MESSAGES["ru"]).get(key, key)
+
+def get_all_variants(key):
+    """Returns a set of all translations for a given key to use in filters"""
+    return {lang_data.get(key, key) for lang_data in MESSAGES.values()}

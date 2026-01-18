@@ -9,6 +9,15 @@ user_repo = UsersRepository()
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message):
+    user = await user_repo.get_user(message.from_user.id)
+    
+    if user:
+        # User tuple: (id, username, fullname, language, created_at)
+        lang = user[3]
+        if lang:
+             await message.answer(get_text(lang, "start"), reply_markup=main_menu(lang))
+             return
+
     await user_repo.upsert_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
     await message.answer("Выберите язык / Tilni tanlang:", reply_markup=language_keyboard())
 
@@ -16,6 +25,7 @@ async def cmd_start(message: types.Message):
 async def language_selected(call: types.CallbackQuery):
     lang = call.data.split("_")[1]
     await user_repo.set_language(call.from_user.id, lang)
+    # Re-fetch user to ensure we have latest state if needed, or just proceed
     await call.message.delete()
     await call.message.answer(get_text(lang, "main_menu"), reply_markup=main_menu(lang))
     await call.answer()
