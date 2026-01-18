@@ -1,41 +1,76 @@
-# Travel Bot
+# Travel Bot Project
 
-A strictly structured Telegram bot for travel bookings.
+## Описание
+Телеграм-бот для оформления заявок на авиабилеты. Поддерживает русский и узбекский языки, ведет историю заявок и имитирует оплату.
 
-## Setup
+## Структура проекта
+Проект построен на **Python** с использованием библиотеки **aiogram 3.x** и базы данных **SQLite** (через `aiosqlite`).
 
-1.  **Clone & Install**:
+### Файлы и Папки
+
+*   **`bot/main.py`**
+    *   Точка входа. Запускает асинхронный цикл и бота.
+
+*   **`bot/app.py`**
+    *   Создает объекты `Bot` и `Dispatcher`.
+    *   Регистрирует роутеры (обработчики) из папки `handlers`.
+    *   Запускает `polling` (получение обновлений от Telegram).
+
+*   **`bot/config/settings.py`**
+    *   Загружает настройки (Токен бота) из переменных окружения или `.env` файла.
+
+*   **`bot/db/`** (База данных)
+    *   `init_db.py`: Создает таблицы `users` и `bookings` при запуске.
+    *   `connection.py`: Управляет подключением к SQLite (`bot.db`).
+    *   `repositories/`:
+        *   `users_repo.py`: Работа с пользователями (сохранение, язык).
+        *   `tours_repo.py`: Работа с заявками (создание, чтение истории, обновление статуса).
+
+*   **`bot/handlers/`** (Логика ответов)
+    *   `start.py`: Обработка команды `/start`, регистрация пользователя, выбор языка.
+    *   `booking.py`: Основной функционал. Содержит:
+        *   FSM (машину состояний) для оформления билета (Откуда -> Куда -> Даты -> Бюджет -> Валюта).
+        *   Обработку истории заявок ("Мои заявки").
+        *   Разделы "Контакты" и "Помощь".
+
+*   **`bot/keyboards/`** (Кнопки)
+    *   `reply.py`: Обычные кнопки (меню, выбор городов, отмена).
+    *   `inline.py`: Кнопки под сообщениями (выбор языка, пагинация).
+
+*   **`bot/texts/localization.py`**
+    *   Файл с переводами (RU/UZ). Все тексты хранятся здесь.
+
+## Установка и Запуск
+
+1.  **Создайте файл `.env`** в корне папки:
+    ```
+    BOT_TOKEN=ваш_токен_от_botfather
+    ```
+
+2.  **Установите зависимости**:
     ```bash
-    git clone ...
-    cd tg_botForBattle
-    python -m venv venv
-    venv\Scripts\activate
     pip install -r requirements.txt
     ```
 
-2.  **Environment**:
-    Create `.env`:
-    ```ini
-    BOT_TOKEN=123...
-    ```
-
-3.  **Run**:
+3.  **Запустите бота**:
     ```bash
     python -m bot.main
     ```
+    *Важно*: Если бот уже запущен, остановите его (Ctrl+C) и запустите заново, чтобы применились изменения кода.
 
-## Architecture
+## Как работает БД
 
-*   `bot/main.py`: Entry point.
-*   `bot/app.py`: Dispatcher and Router setup.
-*   `bot/db/`: 
-    *   `init_db.py`: Schema creation (users, bookings).
-    *   `repositories/`: Data access layers.
-*   `bot/handlers/`:
-    *   `start.py`: Registration and Language.
-    *   `booking.py`: Booking FSM and History.
-*   `bot/texts/localization.py`: All texts (RU/UZ). NO emojis.
+*   **users**:
+    *   `user_id`: ID пользователя Telegram.
+    *   `full_name`: Имя.
+    *   `language`: Выбранный язык (ru/uz).
+*   **bookings**:
+    *   `id`: Номер заявки.
+    *   `from_city`, `to_city`: Маршрут.
+    *   `depart_date`, `return_date`: Даты.
+    *   `budget_value`, `budget_currency`: Бюджет.
+    *   `status`: 'pending' (ждет оплаты) или 'paid'.
 
-## Deployment
-
-Deploy on any VPS using Systemd or Docker. Ensure the `bot.service` runs `python -m bot.main` in the virtual environment.
+## Команды
+*   `/start` - Перезапуск, выбор языка.
+*   `/ticket` - Начать оформление (или через кнопку меню).

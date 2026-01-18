@@ -1,93 +1,65 @@
-import re
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from bot.db.repositories.users_repo import UsersRepository
 from bot.db.repositories.tours_repo import BookingsRepository
 from bot.texts.localization import get_text
-from bot.keyboards.reply import (
-    main_menu_kb, cities_kb, cancel_reply_kb, currency_kb, pax_kb, 
-    hotel_stars_kb, meals_kb, tariffs_inline_kb, payment_inline_kb, history_paging_kb
-)
+from bot.keyboards.reply import main_menu_kb, cancel_reply_kb, history_paging_kb
 
 router = Router()
 users_repo = UsersRepository()
 bookings_repo = BookingsRepository()
 
-class BookingStates(StatesGroup):
-    origin = State()
-    destination = State()
-    date_out = State()
-    date_ret = State()
+class StepStates(StatesGroup):
+    dest = State()
+    date = State()
     budget = State()
     pax = State()
-    hotel = State()
-    meals = State()
-    tariff = State()
+    wishes = State()
 
 @router.message(F.text.in_(["Контакты", "Aloqa"]))
 async def show_contacts(message: types.Message):
     user = await users_repo.get_user(message.from_user.id)
-    lang = user[3]
+    lang = user[3] if user else 'ru'
     await message.answer(get_text(lang, "contacts_text"))
 
 @router.message(F.text.in_(["Помощь", "Yordam"]))
 async def show_help(message: types.Message):
     user = await users_repo.get_user(message.from_user.id)
-    lang = user[3]
+    lang = user[3] if user else 'ru'
     await message.answer(get_text(lang, "help_text"))
 
-@router.message(F.text.in_(["Оформить билет", "Chipta rasmiylashtirish"]))
-@router.message(F.command == "ticket")
-async def start_booking(message: types.Message, state: FSMContext):
+@router.message(F.text.in_(["Подобрать тур", "Tur tanlash"]))
+@router.message(F.command == "tour")
+async def start_tour(message: types.Message, state: FSMContext):
     user = await users_repo.get_user(message.from_user.id)
-    lang = user[3]
-    await state.update_data(lang=lang)
-    await state.set_state(BookingStates.origin)
-    await message.answer(get_text(lang, "action_origin"), reply_markup=cities_kb(lang))
-
-@router.message(BookingStates.origin)
-async def state_origin(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    lang = data['lang']
+    if not user:
+        user = await users_repo.upsert_user(message.from_user.id, message.from_user.username, message.from_user.full_name)
+        lang = 'ru'
+    else:
+        lang = user[3]
     
-    if message.text in ["Отмена", "Bekor qilish", "Cancel"]:
-        await state.clear()
-        await message.answer(get_text(lang, "menu"), reply_markup=main_menu_kb(lang))
-        return
-        
-    if message.text in ["Другое", "Boshqa"]:
-        await message.answer(get_text(lang, "btn_other"), reply_markup=cancel_reply_kb(lang))
-        return
-        
-    await state.update_data(origin=message.text)
-    await state.set_state(BookingStates.destination)
-    await message.answer(get_text(lang, "action_dest"), reply_markup=cities_kb(lang, exclude=message.text))
+    await state.clear()
+    await state.update_data(lang=lang)
+    await state.set_state(StepStates.dest)
+    await message.answer(get_text(lang, "q_dest"), reply_markup=cancel_reply_kb(lang))
 
-@router.message(BookingStates.destination)
+@router.message(StepStates.dest)
 async def state_dest(message: types.Message, state: FSMContext):
     data = await state.get_data()
     lang = data['lang']
-
-    if message.text in ["Отмена", "Bekor qilish", "Cancel"]:
+    
+    if message.text in ["Отмена", "Bekor qilish"]:
         await state.clear()
         await message.answer(get_text(lang, "menu"), reply_markup=main_menu_kb(lang))
         return
 
-    if message.text in ["Другое", "Boshqa"]:
-        await message.answer(get_text(lang, "btn_other"), reply_markup=cancel_reply_kb(lang))
-        return
-        
-    if message.text == data.get('origin'):
-        await message.answer(get_text(lang, "err_same_city"))
-        return
+    await state.update_data(to_city=message.text)
+    await state.set_state(StepStates.date)
+    await message.answer(get_text(lang, "q_date"), reply_markup=cancel_reply_kb(lang))
 
-    await state.update_data(dest=message.text)
-    await state.set_state(BookingStates.date_out)
-    await message.answer(get_text(lang, "action_date_out"), reply_markup=cancel_reply_kb(lang))
-
-@router.message(BookingStates.date_out)
-async def state_date_out(message: types.Message, state: FSMContext):
+@router.message(StepStates.date)
+async def state_date(message: types.Message, state: FSMContext):
     data = await state.get_data()
     lang = data['lang']
 
@@ -96,33 +68,11 @@ async def state_date_out(message: types.Message, state: FSMContext):
         await message.answer(get_text(lang, "menu"), reply_markup=main_menu_kb(lang))
         return
 
-    if not re.match(r"\d{2}\.\d{2}\.\d{4}", message.text):
-        await message.answer(get_text(lang, "err_format"))
-        return
+    await state.update_data(depart_date=message.text)
+    await state.set_state(StepStates.budget)
+    await message.answer(get_text(lang, "q_budget"), reply_markup=cancel_reply_kb(lang))
 
-    await state.update_data(date_out=message.text)
-    await state.set_state(BookingStates.date_ret)
-    await message.answer(get_text(lang, "action_date_ret"), reply_markup=cancel_reply_kb(lang))
-
-@router.message(BookingStates.date_ret)
-async def state_date_ret(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    lang = data['lang']
-
-    if message.text in ["Отмена", "Bekor qilish"]:
-        await state.clear()
-        await message.answer(get_text(lang, "menu"), reply_markup=main_menu_kb(lang))
-        return
-
-    if not re.match(r"\d{2}\.\d{2}\.\d{4}", message.text):
-        await message.answer(get_text(lang, "err_format"))
-        return
-
-    await state.update_data(date_ret=message.text)
-    await state.set_state(BookingStates.budget)
-    await message.answer(get_text(lang, "action_budget"), reply_markup=cancel_reply_kb(lang))
-
-@router.message(BookingStates.budget)
+@router.message(StepStates.budget)
 async def state_budget(message: types.Message, state: FSMContext):
     data = await state.get_data()
     lang = data['lang']
@@ -132,28 +82,22 @@ async def state_budget(message: types.Message, state: FSMContext):
         await message.answer(get_text(lang, "menu"), reply_markup=main_menu_kb(lang))
         return
     
-    if not message.text.isdigit():
-        await message.answer(get_text(lang, "err_number"))
-        return
-
-    await state.update_data(budget_val=int(message.text))
+    # Allow loose input, but try to find a digit if possible, otherwise just save text
+    # The prompt says "(in USD)", so we assume USD
     
-    # Implicitly move to currency
-    await message.answer(get_text(lang, "action_currency"), reply_markup=currency_kb(lang))
-
-@router.message(F.text.in_(["USD", "UZS"]))
-async def state_currency(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    lang = data['lang']
+    await state.update_data(budget_value=message.text) # Save as text to handle "600" or "approx 600" if we want loose
+    # But DB expects REAL for budget_value. Let's try to extract int, or default to 0
+    try:
+        val = float(''.join(filter(str.isdigit, message.text)))
+    except:
+        val = 0.0
     
-    if await state.get_state() != BookingStates.budget:
-        return 
+    await state.update_data(budget_val_real=val)
+    
+    await state.set_state(StepStates.pax)
+    await message.answer(get_text(lang, "q_pax"), reply_markup=cancel_reply_kb(lang))
 
-    await state.update_data(budget_curr=message.text)
-    await state.set_state(BookingStates.pax)
-    await message.answer(get_text(lang, "action_pax"), reply_markup=pax_kb(lang))
-
-@router.message(BookingStates.pax)
+@router.message(StepStates.pax)
 async def state_pax(message: types.Message, state: FSMContext):
     data = await state.get_data()
     lang = data['lang']
@@ -163,25 +107,18 @@ async def state_pax(message: types.Message, state: FSMContext):
         await message.answer(get_text(lang, "menu"), reply_markup=main_menu_kb(lang))
         return
         
-    if message.text in ["Другое", "Boshqa"]:
-        await message.answer(get_text(lang, "btn_other"), reply_markup=cancel_reply_kb(lang))
-        return
-
-    if not message.text.isdigit():
-        await message.answer(get_text(lang, "err_number"))
-        return
-    
-    val = int(message.text)
-    if val < 1 or val > 20:
-        await message.answer(get_text(lang, "err_pax_range"))
-        return
-
+    # Like budget, save loosely or strict? User log showed "3"
+    try:
+        val = int(message.text)
+    except:
+        val = 1
+        
     await state.update_data(pax=val)
-    await state.set_state(BookingStates.hotel)
-    await message.answer(get_text(lang, "action_hotel"), reply_markup=hotel_stars_kb(lang))
+    await state.set_state(StepStates.wishes)
+    await message.answer(get_text(lang, "q_wishes"), reply_markup=cancel_reply_kb(lang))
 
-@router.message(BookingStates.hotel)
-async def state_hotel(message: types.Message, state: FSMContext):
+@router.message(StepStates.wishes)
+async def state_wishes(message: types.Message, state: FSMContext):
     data = await state.get_data()
     lang = data['lang']
 
@@ -189,101 +126,53 @@ async def state_hotel(message: types.Message, state: FSMContext):
         await state.clear()
         await message.answer(get_text(lang, "menu"), reply_markup=main_menu_kb(lang))
         return
-    
-    text = message.text
-    if text in ["Другое", "Boshqa"]:
-        await message.answer(get_text(lang, "btn_other"), reply_markup=cancel_reply_kb(lang))
-        return
 
-    await state.update_data(hotel=text)
-    await state.set_state(BookingStates.meals)
-    await message.answer(get_text(lang, "action_meals"), reply_markup=meals_kb(lang))
-
-@router.message(BookingStates.meals)
-async def state_meals(message: types.Message, state: FSMContext):
-    data = await state.get_data()
-    lang = data['lang']
-
-    if message.text in ["Отмена", "Bekor qilish"]:
-        await state.clear()
-        await message.answer(get_text(lang, "menu"), reply_markup=main_menu_kb(lang))
-        return
+    wishes = message.text
     
-    text = message.text
-    if text in ["Другое", "Boshqa"]:
-        await message.answer(get_text(lang, "btn_other"), reply_markup=cancel_reply_kb(lang))
-        return
-
-    await state.update_data(meals=text)
-    
-    # Calculate
-    pax = data['pax']
-    base_price = pax * 150
-    prices = [base_price, int(base_price * 1.4), int(base_price * 2.2)]
-    await state.update_data(prices=prices)
-    
-    summary = (
-        f"{get_text(lang, 'summary_title')}\n"
-        f"{data['origin']} -> {data['dest']}\n"
-        f"{data['date_out']} - {data['date_ret']}\n"
-        f"{data['pax']} pax, {data['hotel']}, {text}"
-    )
-    await message.answer(summary, reply_markup=main_menu_kb(lang))
-    await message.answer(get_text(lang, "select_tariff"), reply_markup=tariffs_inline_kb(lang, prices))
-    await state.set_state(BookingStates.tariff)
-
-@router.callback_query(BookingStates.tariff)
-async def cb_tariff(call: types.CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    lang = data['lang']
-    idx = int(call.data.split("_")[1])
-    
-    prices = data['prices']
-    price = prices[idx]
-    names = ["Economy", "Standard", "Comfort"]
-    fare_name = names[idx]
+    # Save to DB
+    # Mapping loose fields to our schema:
+    # from_city -> "Tashkent" (default)
+    # to_city -> dest
+    # depart_date -> date
+    # return_date -> "" (none)
+    # budget_value -> budget line
+    # budget_currency -> "USD"
+    # passengers -> pax
+    # hotel -> wishes (storage hack)
+    # meals -> "Any" (or part of wishes)
     
     save_data = {
-        "user_id": call.from_user.id,
-        "from_city": data['origin'],
-        "to_city": data['dest'],
-        "depart_date": data['date_out'],
-        "return_date": data['date_ret'],
-        "budget_value": data['budget_val'],
-        "budget_currency": data['budget_curr'],
+        "user_id": message.from_user.id,
+        "from_city": "Tashkent", # Default
+        "to_city": data['to_city'],
+        "depart_date": data['depart_date'],
+        "return_date": "", 
+        "budget_value": data['budget_val_real'],
+        "budget_currency": "USD",
         "passengers": data['pax'],
-        "hotel": data['hotel'],
-        "meals": data['meals'],
-        "fare_name": fare_name,
-        "price_value": price,
+        "hotel": wishes, 
+        "meals": "Any",
+        "fare_name": "Custom",
+        "price_value": 0,
         "price_currency": "USD",
         "status": "pending"
     }
     
     booking_id = await bookings_repo.create_booking(save_data)
-    await call.message.delete()
-    await call.message.answer(get_text(lang, "booking_created").format(booking_id), reply_markup=payment_inline_kb(lang, booking_id))
-    await state.clear()
-
-@router.callback_query(F.data.startswith("pay_"))
-async def cb_pay(call: types.CallbackQuery):
-    user = await users_repo.get_user(call.from_user.id)
-    lang = user[3]
-    book_id = int(call.data.split("_")[1])
     
-    await bookings_repo.update_status(book_id, "paid")
-    await call.message.edit_text(get_text(lang, "pay_success").format(book_id))
+    await state.clear()
+    await message.answer(get_text(lang, "booking_created").format(booking_id), reply_markup=main_menu_kb(lang))
 
 @router.message(F.text.in_(["Мои заявки", "Mening buyurtmalarim"]))
 async def cmd_history(message: types.Message):
     user = await users_repo.get_user(message.from_user.id)
-    lang = user[3]
+    lang = user[3] if user else 'ru'
     await show_history_page(message.from_user.id, lang, message, 0)
 
 @router.callback_query(F.data.startswith("hist_"))
 async def cb_history(call: types.CallbackQuery):
     user = await users_repo.get_user(call.from_user.id)
-    lang = user[3]
+    lang = user[3] if user else 'ru'
     offset = int(call.data.split("_")[1])
     await call.message.delete()
     await show_history_page(call.from_user.id, lang, call.message, offset)
@@ -295,22 +184,16 @@ async def show_history_page(user_id, lang, message, offset):
         await message.answer(get_text(lang, "history_empty"))
         return
     
-    # We need total count for proper pagination logic in real app, but here we simply checks if we got 5
-    # Simplification: if len(items) == limit, show next
-    
     text = f"{get_text(lang, 'history_title')}\n\n"
     for item in items:
-        status_key = f"status_{item['status']}"
-        status_txt = get_text(lang, status_key)
+        # Format for history
         text += (
-            f"🎫 #{item['id']} | {item['created_at'][:16]}\n"
-            f"✈️ {item['from_city']} -> {item['to_city']}\n"
-            f"📅 {item['depart_date']} - {item['return_date']}\n"
-            f"💵 {item['price_value']} {item['price_currency']} ({item['fare_name']})\n"
-            f"STATUS: {status_txt}\n\n"
+            f"#{item['id']} | {item['to_city']}\n"
+            f"Date: {item['depart_date']}\n"
+            f"Budget: {item['budget_value']}$\n"
+            f"Wishes: {item['hotel']}\n"
+            f"--------------\n"
         )
         
-    # Hacky total estimation for "next" button
     total = offset + limit + 1 if len(items) == limit else offset + len(items)
-    
     await message.answer(text, reply_markup=history_paging_kb(lang, offset, limit, total))
