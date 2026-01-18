@@ -1,4 +1,3 @@
-import asyncio
 from aiogram import Bot, Dispatcher
 from bot.config import settings
 from bot.db.init_db import init_db
@@ -11,7 +10,6 @@ async def main():
     dp = Dispatcher()
     
     dp.include_router(start.router)
-    dp.include_router(admin.router)
     dp.include_router(booking.router)
     dp.include_router(hot_tours.router)
     
